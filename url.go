@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -86,6 +87,9 @@ func Parser(path *string) *URL {
 
 	if path == nil || len(*path) == 0 {
 		var resource = "dat"
+		if runtime.GOOS == "linux" {
+			resource = "/var/urlx"
+		}
 		os.Mkdir(resource, 0644)
 		path = &resource
 	}
