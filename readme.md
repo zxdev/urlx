@@ -1,11 +1,9 @@
 
 # urlx
 
-The urlx package is a simple url standardizer that parses a url into parts and will set several flags.
- url.IP or url.IDNA flag when detected. 
+The urlx package is a simple url standardizer that parses a url into its constituant  parts and will set several flags as part of the parser such as url.IP or url.IDNA flag when detected. The parser can be modified with various toggles, such as noWWW, noPort, noPage as well as various controls flags such as onlyIP, onlyApex, or onlyHost.
 
-Parse generally confirms the hostname has the required format and generated the apex, host, and tld with the tld kind for domain and reports if an IPv4/6 address.
-
+The Parser is used to generally confirms the hostname has the required format and generates the tld, apex, and host along with the tld kind for the domain and reports only the host for an IPv4/6 address.
 
 ```golang
 
