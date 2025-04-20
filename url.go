@@ -210,8 +210,10 @@ func (u *URL) String() (url string) {
 	return
 }
 
-// HostIsApex is a boolean comparison test
-func (u *URL) HostIsApex() bool {
+// Compare is a boolean comparison test for Apex and Host hostnames; the
+// Apex form will always be empty on the parser failure or when an IP is
+// detected so this sould only be used with domains
+func (u *URL) Compare() bool {
 	return len(u.Apex) > 0 && len(u.Host) == len(u.Apex)
 }
 
