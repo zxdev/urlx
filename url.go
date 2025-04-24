@@ -415,10 +415,10 @@ func (u *URL) Parse(url *string) (ok bool) {
 	}
 
 	// final validation check
-	if len(u.Host) < 254 && strings.ContainsAny(u.Host, ".:") {
-		return true
+	if len(u.Host) > 253 {
+		u.reset()
+		return
 	}
 
-	u.reset()
-	return
+	return true
 }
