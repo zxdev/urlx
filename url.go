@@ -33,16 +33,6 @@ import (
 // dots). But it is an eTLD (effective TLD), because that's the branching point
 // for domain name registrars.
 //
-// Another name for "an eTLD" is "a public suffix". Often, what's more of
-// interest is the eTLD+1, or one more label than the public suffix, or Apex.
-// For example, browsers partition read/write access to HTTP cookies according
-// to the eTLD+1. Web pages served from "amazon.com.au" can't read cookies from
-// "google.com.au", but web pages served from "maps.google.com" can share
-// cookies from "www.google.com", so you don't have to sign into Google Maps
-// separately from signing into Google Web Search. Note that all four of those
-// domains have 3 labels and 2 dots. The first two domains are each an eTLD+1,
-// the last two are not (but share the same eTLD+1: "google.com").
-//
 // All of these domains have the same eTLD+1 or Apex hostname:
 //   - "www.books.amazon.co.uk"
 //   - "books.amazon.co.uk"
@@ -51,17 +41,17 @@ import (
 // Specifically, the eTLD+1 is "amazon.co.uk", because the eTLD is "co.uk".
 //
 // There is no closed form algorithm to calculate the eTLD of a domain.
-// Instead, the calculation is data driven. This package provides a
-// pre-compiled snapshot of Mozilla's PSL (Public Suffix List) data at
-// https://publicsuffix.org/ which is used for detecting the apex form
-// when parsing the url. The list automatically refreshed every 72 hours
-// according the the foundations website recommendation.
+// Instead, the calculation is data driven. This package uses Mozilla's PSL
+// (Public Suffix List) data at https://publicsuffix.org/ which is used for
+// detecting the apex form when parsing the url. The list automatically
+// refreshes every 72 hours according the the foundations recommendation.
 type URL struct {
 	tld                           map[string]uint8 // tld reference
 	Apex, Host, Port, Path, TLD   string           // url segment
 	IP, IDNA                      bool             // form type flags
 	Kind                          uint8            // icann, private, custom flag
 	onlyIP, onlyHost, onlyApex    bool             // conditional toggle type flags
+	validTLD                      bool             // conditional toggle type flag
 	noWWW, noPath, noPort, noIDNA bool             // conditional toggle segment flags
 	puny                          *idna.Profile    // operational element
 	idx                           int              // operational element
@@ -70,15 +60,14 @@ type URL struct {
 	err                           error            // operational element
 }
 
-// Parser is the urlx configurator that will automatically download and
-// refresh and then apply the publicsuffix.org and the urlx.dat custom list.
+// Parser is the urlx configurator that will automatically download and refresh
+// and then apply the publicsuffix.org and the urlx.dat custom suffix list.
 //
-// Kind flag reports whether the suffix is managed by the Internet Corporation
-// for Assigned Names and Numbers a privately managed domain (and in practice,
-// not a top level domain) or an unmanaged top level domain (and not explicitly
-// mentioned in the publicsuffix.org list), or a custom domain. For example,
-// "foo.org" and "foo.co.uk" are ICANN domains, "foo.dyndns.org" is a private
-// domain and "zxdev.com" when added to urlx.dat is a custom top level domain.
+// The Kind flag reports the source for the tld suffix.
+//
+//	Kind 1 0b0001 : icann managed tld (Mozilla PSL)
+//	Kind 2 0b0010 : publicsuffix private tld (Mozilla PSL)
+//	Kind 4 0b0100 : urlx custom tld (local suffix list)
 func Parser(path *string) *URL {
 
 	u := new(URL)
@@ -210,11 +199,13 @@ func (u *URL) String() (url string) {
 	return
 }
 
-// Compare is a boolean comparison test for Apex and Host hostnames; the
-// Apex form will always be empty on the parser failure or when an IP is
-// detected so this sould only be used with domains
+// The Compare method is a boolean equivalence comparison test for Apex and Host domain names.
+// It's best to test for an IP first and take action at that branch point, however testing with
+// an IP will report eqivalence even though the apex field is empty becuase the intended logic
+// is that when the host and apex are different a different or secondary action would be taken
+// based upon testing so plan the resultant logic flow accordingly.
 func (u *URL) Compare() bool {
-	return len(u.Apex) > 0 && len(u.Host) == len(u.Apex)
+	return u.IP || len(u.Apex) > 0 && len(u.Host) == len(u.Apex)
 }
 
 // reset
@@ -243,6 +234,9 @@ func (u *URL) NoPath() *URL { u.noPath = !u.noPath; return u } // off
 
 // NoPort; default off
 func (u *URL) NoPort() *URL { u.noPort = !u.noPort; return u } // off
+
+// ValidTLD enforce valid tld toggle; default on
+func (u *URL) ValidTLD() *URL { u.validTLD = !u.validTLD; return u } // on
 
 // OnlyIP toggle; default off
 //
@@ -288,7 +282,7 @@ func (u *URL) OnlyApex() *URL {
 //
 //	Kind 1 0b0001 : icann managed tld
 //	Kind 2 0b0010 : publicsuffix private tld
-//	Kind 4 0b0100 : urlx custom tld
+//	Kind 4 0b0100 : urlx custom suffix tld
 func (u *URL) Parse(url *string) (ok bool) {
 
 	// reset url segments and type flags
@@ -359,6 +353,7 @@ func (u *URL) Parse(url *string) (ok bool) {
 		if u.ip.IsUnspecified() || u.ip.IsLoopback() || u.ip.IsPrivate() {
 			u.reset()
 			return
+
 		}
 	}
 
@@ -396,6 +391,14 @@ func (u *URL) Parse(url *string) (ok bool) {
 			u.Apex = strings.Join(u.host[u.idx:], ".")
 		}
 
+		// validate the suffix tld
+		if u.Kind == 0 {
+			if !u.validTLD {
+				u.reset()
+				return
+			}
+		}
+
 		// remove www label
 		//  exception for icann tld, private, and custom forms only
 		if !u.noWWW && strings.HasPrefix(u.Host, "www.") {
@@ -416,5 +419,6 @@ func (u *URL) Parse(url *string) (ok bool) {
 		return true
 	}
 
+	u.reset()
 	return
 }
