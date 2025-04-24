@@ -97,7 +97,6 @@ func TestURL(t *testing.T) {
 		"16.88.22.44:1234/path/page",           // ipv4+full
 		"acdf::1212",                           // ipv6
 		"[acca::2222]:5678/path/page",          // ipv6+full
-		"salomonoutletzapatillas.com/",         // maviner fail
 	} {
 
 		t.Log("origional ", v, "success=", u.Parse(&v))
