@@ -16,7 +16,7 @@ import (
 )
 
 // Package URL provides a public suffix aware url parser based on data from
-// https://publicsuffix.org/ merged with a custom urlx.dat list.
+// https://publicsuffix.org/ merged with a custom dat list.
 //
 // A public suffix is one under which Internet users can directly register
 // names. It is related to, but different from, a TLD (top level domain).
@@ -44,7 +44,8 @@ import (
 // Instead, the calculation is data driven. This package uses Mozilla's PSL
 // (Public Suffix List) data at https://publicsuffix.org/ which is used for
 // detecting the apex form when parsing the url. The list automatically
-// refreshes every 72 hours according the the foundations recommendation.
+// refreshes every 72 hours according the the foundations recommendation,
+// and an additional custom list can be created and utilized as well.
 type URL struct {
 	tld                           map[string]uint8 // tld reference
 	Apex, Host, Port, Path, TLD   string           // url segment
@@ -61,7 +62,7 @@ type URL struct {
 }
 
 // Parser is the urlx configurator that will automatically download and refresh
-// and then apply the publicsuffix.org and the urlx.dat custom suffix list.
+// and then apply the publicsuffix.org and the custom dat suffix list.
 //
 // The Kind flag reports the source for the tld suffix.
 //
@@ -130,10 +131,10 @@ func Parser(path *string) *URL {
 		f.Close()
 	}
 
-	// add the urlx.dat resource file or generate an empty
+	// add the custom.dat resource file or generate an empty
 	// custom resource file when it is missing
 
-	f, err = os.Open(filepath.Join(*path, "urlx.dat"))
+	f, err = os.Open(filepath.Join(*path, "custom.dat"))
 	if err == nil {
 
 		var row string
@@ -155,7 +156,7 @@ func Parser(path *string) *URL {
 	} else {
 
 		// generate empty file
-		w, _ := os.Create(filepath.Join(*path, "urlx.dat"))
+		w, _ := os.Create(filepath.Join(*path, "custom.dat"))
 		fmt.Fprintln(w, "# urlx custom tld list | ", time.Now().Format(time.RFC3339)[:19])
 		w.Close()
 
@@ -321,6 +322,9 @@ func (u *URL) Parse(url *string) (ok bool) {
 		u.Host = u.seg[1]
 	}
 
+	// strip whitespace
+	u.Host = strings.TrimSpace(u.Host)
+
 	// extract port
 	switch {
 
@@ -367,7 +371,6 @@ func (u *URL) Parse(url *string) (ok bool) {
 	if !u.IP {
 
 		// standardize host
-		u.Host = strings.TrimSpace(u.Host)       // strip whitespace
 		u.Host = strings.ToLower(u.Host)         // lowercase
 		u.Host = strings.TrimSuffix(u.Host, ".") // clean cannonical
 

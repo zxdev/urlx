@@ -94,6 +94,7 @@ func TestURL(t *testing.T) {
 		"www.duckdns.org",                      // private tld edge case exception
 		"one.www.co.uk",                        // not an icann edge case; apex is edge case exception
 		"165.44.22.11",                         // ipv4
+		"165.44.22.99\t\t",                     // ipv4 whitespace
 		"16.88.22.44:1234/path/page",           // ipv4+full
 		"acdf::1212",                           // ipv6
 		"[acca::2222]:5678/path/page",          // ipv6+full
