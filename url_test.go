@@ -10,81 +10,94 @@ func TestURL(t *testing.T) {
 
 	/*
 		=== RUN   TestURL
-		    url_test.go:102: origional  14x33 success= false
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host=  port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  com success= false
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host=  port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  api.c success= false
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host=  port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  duckdns.org success= false
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host=  port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  exàmple.com success= true
-		    url_test.go:103: flags     compare= true ip= false idna= true kind= 1
-		    url_test.go:104: elements  tld= com apex= xn--exmple-jta.com host= xn--exmple-jta.com port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  http://www.example.com success= true
-		    url_test.go:103: flags     compare= true ip= false idna= false kind= 1
-		    url_test.go:104: elements  tld= com apex= example.com host= example.com port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  blog.example.com:80/path/page success= true
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 1
-		    url_test.go:104: elements  tld= com apex= example.com host= blog.example.com port= 80 path= path/page
-		    url_test.go:105:
-		    url_test.go:102: origional  click.api.example.com:8888/path/page success= true
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 1
-		    url_test.go:104: elements  tld= com apex= example.com host= click.api.example.com port= 8888 path= path/page
-		    url_test.go:105:
-		    url_test.go:102: origional  www.fr success= true
-		    url_test.go:103: flags     compare= true ip= false idna= false kind= 1
-		    url_test.go:104: elements  tld= fr apex= www.fr host= www.fr port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  www.co.uk success= true
-		    url_test.go:103: flags     compare= true ip= false idna= false kind= 1
-		    url_test.go:104: elements  tld= co.uk apex= www.co.uk host= www.co.uk port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  www.duckdns.org success= true
-		    url_test.go:103: flags     compare= true ip= false idna= false kind= 2
-		    url_test.go:104: elements  tld= duckdns.org apex= www.duckdns.org host= www.duckdns.org port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  one.www.co.uk success= true
-		    url_test.go:103: flags     compare= false ip= false idna= false kind= 1
-		    url_test.go:104: elements  tld= co.uk apex= www.co.uk host= one.www.co.uk port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  165.44.22.11 success= true
-		    url_test.go:103: flags     compare= true ip= true idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host= 165.44.22.11 port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  16.88.22.44:1234/path/page success= true
-		    url_test.go:103: flags     compare= true ip= true idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host= 16.88.22.44 port= 1234 path= path/page
-		    url_test.go:105:
-		    url_test.go:102: origional  acdf::1212 success= true
-		    url_test.go:103: flags     compare= true ip= true idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host= acdf::1212 port=  path=
-		    url_test.go:105:
-		    url_test.go:102: origional  [acca::2222]:5678/path/page success= true
-		    url_test.go:103: flags     compare= true ip= true idna= false kind= 0
-		    url_test.go:104: elements  tld=  apex=  host= acca::2222 port= 5678 path= path/page
-		    url_test.go:105:
+		    url_test.go:90: tld: 9959
+		    url_test.go:115: origional  14x33 success= false
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host=  port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  com success= false
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host=  port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  api.c success= false
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host=  port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  duckdns.org success= false
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host=  port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  vfs.cloud9.eu-west-1.amazonaws.com success= false
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host=  port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  exàmple.com success= true
+		    url_test.go:116: flags     compare= true ip= false idna= true kind= icann
+		    url_test.go:117: elements  tld= com apex= xn--exmple-jta.com host= xn--exmple-jta.com port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  http://www.example.com success= true
+		    url_test.go:116: flags     compare= true ip= false idna= false kind= icann
+		    url_test.go:117: elements  tld= com apex= example.com host= example.com port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  blog.example.com:80/path/page success= true
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= icann
+		    url_test.go:117: elements  tld= com apex= example.com host= blog.example.com port= 80 path= path/page
+		    url_test.go:118:
+		    url_test.go:115: origional  click.api.example.com:8888/path/page success= true
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= icann
+		    url_test.go:117: elements  tld= com apex= example.com host= click.api.example.com port= 8888 path= path/page
+		    url_test.go:118:
+		    url_test.go:115: origional  www.fr success= true
+		    url_test.go:116: flags     compare= true ip= false idna= false kind= icann
+		    url_test.go:117: elements  tld= fr apex= www.fr host= www.fr port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  www.co.uk success= true
+		    url_test.go:116: flags     compare= true ip= false idna= false kind= icann
+		    url_test.go:117: elements  tld= co.uk apex= www.co.uk host= www.co.uk port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  www.duckdns.org success= true
+		    url_test.go:116: flags     compare= true ip= false idna= false kind= publicsuffix
+		    url_test.go:117: elements  tld= duckdns.org apex= www.duckdns.org host= www.duckdns.org port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  one.www.co.uk success= true
+		    url_test.go:116: flags     compare= false ip= false idna= false kind= icann
+		    url_test.go:117: elements  tld= co.uk apex= www.co.uk host= one.www.co.uk port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  165.44.22.11 success= true
+		    url_test.go:116: flags     compare= true ip= true idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host= 165.44.22.11 port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  165.44.22.99             success= true
+		    url_test.go:116: flags     compare= true ip= true idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host= 165.44.22.99 port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  16.88.22.44:1234/path/page success= true
+		    url_test.go:116: flags     compare= true ip= true idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host= 16.88.22.44 port= 1234 path= path/page
+		    url_test.go:118:
+		    url_test.go:115: origional  acdf::1212 success= true
+		    url_test.go:116: flags     compare= true ip= true idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host= acdf::1212 port=  path=
+		    url_test.go:118:
+		    url_test.go:115: origional  [acca::2222]:5678/path/page success= true
+		    url_test.go:116: flags     compare= true ip= true idna= false kind= bad
+		    url_test.go:117: elements  tld=  apex=  host= acca::2222 port= 5678 path= path/page
+		    url_test.go:118:
 		--- PASS: TestURL (0.00s)
+		PASS
 	*/
 
-	u := urlx.Parser(nil)
-	//u.ValidTLD() // allow invalid tld
+	u := urlx.NewURL()
+	t.Log("tld:", u.Len())
+
+	// u.InvalidTLD() // allow invalid tld
 
 	for _, v := range []string{
 		"14x33",                                // bad; no tld
 		"com",                                  // bad; icann tld only
 		"api.c",                                // bad; not tld
 		"duckdns.org",                          // bad; publicsuffix tld only
+		"vfs.cloud9.eu-west-1.amazonaws.com",   // bad; publicsuffix tld only
 		"exàmple.com",                          // idna
 		"http://www.example.com",               // scheme+www+apex
 		"blog.example.com:80/path/page",        // full
@@ -101,7 +114,7 @@ func TestURL(t *testing.T) {
 	} {
 
 		t.Log("origional ", v, "success=", u.Parse(&v))
-		t.Log("flags     compare=", u.Compare(), "ip=", u.IP, "idna=", u.IDNA, "kind=", u.Kind)
+		t.Log("flags     compare=", u.Compare(), "ip=", u.IP, "idna=", u.IDNA, "kind=", urlx.Kind(u.Kind))
 		t.Log("elements  tld=", u.TLD, "apex=", u.Apex, "host=", u.Host, "port=", u.Port, "path=", u.Path)
 		t.Log()
 

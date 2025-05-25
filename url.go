@@ -52,7 +52,7 @@ type URL struct {
 	IP, IDNA                      bool             // form type flags
 	Kind                          uint8            // icann, private, custom flag
 	onlyIP, onlyHost, onlyApex    bool             // conditional toggle type flags
-	validTLD                      bool             // conditional toggle type flag
+	invalidTLD                    bool             // conditional toggle type flag
 	noWWW, noPath, noPort, noIDNA bool             // conditional toggle segment flags
 	puny                          *idna.Profile    // operational element
 	idx                           int              // operational element
@@ -61,28 +61,41 @@ type URL struct {
 	err                           error            // operational element
 }
 
-// Parser is the urlx configurator that will automatically download and refresh
-// and then apply the publicsuffix.org and the custom dat suffix list.
+// Kind flag decoder progressive order
+//
+//	icann, publicsuffix, custom, bad
+func Kind(kind uint8) string {
+	switch kind {
+	case 1:
+		return "icann"
+	case 2:
+		return "publicsuffix"
+	case 4:
+		return "custom"
+	default:
+		return "bad"
+	}
+}
+
+// NewURL is the urlx.URL  configurator that will automatically download and refresh
+// and then apply the icann.org, publicsuffix.org and a custom dat suffix list
 //
 // The Kind flag reports the source for the tld suffix.
 //
-//	Kind 1 0b0001 : icann managed tld (Mozilla PSL)
+//	Kind 1 0b0001 : icann managed tld (icann, Mozilla PSL)
 //	Kind 2 0b0010 : publicsuffix private tld (Mozilla PSL)
 //	Kind 4 0b0100 : urlx custom tld (local suffix list)
-func Parser(path *string) *URL {
+func NewURL() *URL {
 
 	u := new(URL)
 
 	// assurances
 
-	if path == nil || len(*path) == 0 {
-		var resource = "dat"
-		if runtime.GOOS == "linux" {
-			resource = "/var/urlx"
-		}
-		os.Mkdir(resource, 0644)
-		path = &resource
+	var resource = "dat"
+	if runtime.GOOS == "linux" {
+		resource = "/var/urlx"
 	}
+	os.Mkdir(resource, 0644)
 
 	u.tld = make(map[string]uint8)
 
@@ -90,12 +103,46 @@ func Parser(path *string) *URL {
 	// to support an all ascii typeset; configuration
 	u.puny = idna.New(idna.MapForLookup(), idna.Transitional(true))
 
-	// refresh the publicsuffix.org source when aged
-	// and build the tld map reference for use
+	// refresh the ianna.org and publicsuffix.org source when aged
+	// over 72h and build the tld map reference for use
 
 	var count int
-	var pubsuffix = filepath.Join(*path, "ps.dat")
-	var info, err = os.Stat(pubsuffix)
+
+	// add icann source list
+
+	var icann = filepath.Join(resource, "icann.dat")
+	var info, err = os.Stat(icann)
+	if err != nil || info.ModTime().Before(time.Now().Add(-time.Hour*72)) {
+		r, err := http.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
+		if err == nil && r != nil && r.StatusCode == http.StatusOK {
+			w, err := os.Create(icann)
+			if err == nil {
+				io.Copy(w, r.Body)
+				w.Close()
+			}
+		}
+	}
+
+	f, err := os.Open(icann)
+	if err == nil {
+		var row string
+		var scanner = bufio.NewScanner(f)
+		for scanner.Scan() {
+			row = strings.TrimSpace(scanner.Text())
+			row = strings.ToLower(row)
+			if len(row) == 0 || strings.HasPrefix(row, "#") {
+				continue
+			}
+			u.tld[row] = 1 // 0b0001
+			count++
+		}
+		f.Close()
+	}
+
+	// add public suffix
+
+	var pubsuffix = filepath.Join(resource, "public.dat")
+	info, err = os.Stat(pubsuffix)
 	if err != nil || info.ModTime().Before(time.Now().Add(-time.Hour*72)) {
 		r, err := http.Get("https://publicsuffix.org/list/effective_tld_names.dat")
 		if err == nil && r != nil && r.StatusCode == http.StatusOK {
@@ -107,7 +154,7 @@ func Parser(path *string) *URL {
 		}
 	}
 
-	f, err := os.Open(pubsuffix)
+	f, err = os.Open(pubsuffix)
 	if err == nil {
 		var kind uint8
 		var row string
@@ -134,7 +181,7 @@ func Parser(path *string) *URL {
 	// add the custom.dat resource file or generate an empty
 	// custom resource file when it is missing
 
-	f, err = os.Open(filepath.Join(*path, "custom.dat"))
+	f, err = os.Open(filepath.Join(resource, "custom.dat"))
 	if err == nil {
 
 		var row string
@@ -156,7 +203,7 @@ func Parser(path *string) *URL {
 	} else {
 
 		// generate empty file
-		w, _ := os.Create(filepath.Join(*path, "custom.dat"))
+		w, _ := os.Create(filepath.Join(resource, "custom.dat"))
 		fmt.Fprintln(w, "# urlx custom tld list | ", time.Now().Format(time.RFC3339)[:19])
 		w.Close()
 
@@ -236,8 +283,8 @@ func (u *URL) NoPath() *URL { u.noPath = !u.noPath; return u } // off
 // NoPort; default off
 func (u *URL) NoPort() *URL { u.noPort = !u.noPort; return u } // off
 
-// ValidTLD enforce valid tld toggle; default on
-func (u *URL) ValidTLD() *URL { u.validTLD = !u.validTLD; return u } // on
+// InvalidTLD allows invalid tld toggle; default off
+func (u *URL) InvalidTLD() *URL { u.invalidTLD = !u.invalidTLD; return u } // off
 
 // OnlyIP toggle; default off
 //
@@ -281,9 +328,9 @@ func (u *URL) OnlyApex() *URL {
 // with the IP flag set. When the domain is a converted internationalized form
 // the IDNA flag will be set. The kind field reports the type of domain:
 //
-//	Kind 1 0b0001 : icann managed tld
-//	Kind 2 0b0010 : publicsuffix private tld
-//	Kind 4 0b0100 : urlx custom suffix tld
+//	Kind 1 0b0001 : icann managed tld flag
+//	Kind 2 0b0010 : publicsuffix private tld flag
+//	Kind 4 0b0100 : urlx custom suffix tld flag
 func (u *URL) Parse(url *string) (ok bool) {
 
 	// reset url segments and type flags
@@ -396,7 +443,7 @@ func (u *URL) Parse(url *string) (ok bool) {
 
 		// validate the suffix tld
 		if u.Kind == 0 {
-			if !u.validTLD {
+			if !u.invalidTLD {
 				u.reset()
 				return
 			}
