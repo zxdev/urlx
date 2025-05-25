@@ -23,7 +23,7 @@ The Compare method is a boolean equivalence comparison test for Apex and Host do
 ```golang
 
 // example
-var u = urlx.Parser(nil)
+var u = urlx.NewURL()
 url := "api.example.com/path/logo.jpg"
 if u.Parse(&url) {
     if u.IP {
