@@ -115,10 +115,13 @@ func NewURL() *URL {
 	if err != nil || info.ModTime().Before(time.Now().Add(-time.Hour*72)) {
 		r, err := http.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
 		if err == nil && r != nil && r.StatusCode == http.StatusOK {
-			w, err := os.Create(icann)
+			w, err := os.Create(icann + ".tmp")
 			if err == nil {
-				io.Copy(w, r.Body)
+				n, err := io.Copy(w, r.Body)
 				w.Close()
+				if n > 0 && err == nil {
+					os.Rename(icann+".tmp", icann)
+				}
 			}
 		}
 	}
@@ -146,10 +149,13 @@ func NewURL() *URL {
 	if err != nil || info.ModTime().Before(time.Now().Add(-time.Hour*72)) {
 		r, err := http.Get("https://publicsuffix.org/list/effective_tld_names.dat")
 		if err == nil && r != nil && r.StatusCode == http.StatusOK {
-			w, err := os.Create(pubsuffix)
+			w, err := os.Create(pubsuffix + ".tmp")
 			if err == nil {
-				io.Copy(w, r.Body)
+				n, err := io.Copy(w, r.Body)
 				w.Close()
+				if n > 0 && err == nil {
+					os.Rename(pubsuffix+".tmp", pubsuffix)
+				}
 			}
 		}
 	}
