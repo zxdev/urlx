@@ -95,7 +95,7 @@ func NewURL() *URL {
 	if runtime.GOOS == "linux" {
 		resource = "/var/urlx"
 	}
-	os.Mkdir(resource, 0644)
+	os.Mkdir(resource, 0744)
 
 	u.tld = make(map[string]uint8)
 
