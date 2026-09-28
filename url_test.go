@@ -121,3 +121,47 @@ func TestURL(t *testing.T) {
 	}
 
 }
+
+// TestParseIgnoresEmbeddedScheme covers a real production case (netstar-labs/clab,
+// dispute-submission text with a link-protection wrapper or tracking-redirect
+// path): the raw field is not a clean URL, and it carries a SECOND, later
+// "://" from an embedded destination link. Parse must anchor on the real host
+// at the start of the string and ignore that later scheme - not silently
+// discard the real host and return the embedded one, which is what happened
+// before this test existed: a dispute against "herchenbach.us" was reported
+// against facebook.com's tranco rank instead, because the raw field ended in
+// "...>[cid:...]<https://www.facebook.com/herchenbachgmbh".
+func TestParseIgnoresEmbeddedScheme(t *testing.T) {
+
+	u := urlx.NewURL()
+
+	for _, tc := range []struct {
+		name, in, wantApex string
+	}{
+		{
+			name:     "html link-protection artifact",
+			in:       "herchenbach.us/e3t/ctc/w1+23284/cmrlq04/jkm2>[cid:bc50f260]<https://www.facebook.com/herchenbachgmbh",
+			wantApex: "herchenbach.us",
+		},
+		{
+			name:     "redirect-service path embedding a destination scheme",
+			in:       "jp.av4us.vip/v/s://www.dailymail.co.uk/news/article-7448291/",
+			wantApex: "av4us.vip",
+		},
+		{
+			name:     "genuine leading scheme still strips (regression guard)",
+			in:       "http://www.example.com",
+			wantApex: "example.com",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := tc.in
+			if !u.Parse(&in) {
+				t.Fatalf("Parse(%q) failed", tc.in)
+			}
+			if u.Apex != tc.wantApex {
+				t.Errorf("Parse(%q).Apex = %q, want %q", tc.in, u.Apex, tc.wantApex)
+			}
+		})
+	}
+}

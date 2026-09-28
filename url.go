@@ -353,9 +353,16 @@ func (u *URL) Parse(url *string) (ok bool) {
 		u.Host = u.Host[:u.idx]
 	}
 
-	// strip schemes
+	// strip schemes; the scheme token has to be short and at the very start of
+	// the string, or "://" is not a scheme delimiter at all - it is an embedded
+	// URL inside dirty input (an HTML fragment, a link-protection wrapper, a
+	// tracking redirect with the real target appended after it). strings.Index
+	// finds the FIRST "://" wherever it is, so without this bound Parse
+	// silently discards everything before a later one and returns the embedded
+	// URL's host instead of the real one. 8 covers every real scheme in use
+	// here (https:// is the longest at 5) with margin to spare.
 	if len(u.Host) > 8 {
-		if u.idx = strings.Index(u.Host, "://"); u.idx > -1 {
+		if u.idx = strings.Index(u.Host, "://"); u.idx > -1 && u.idx <= 8 {
 			u.Host = u.Host[u.idx+3:]
 		}
 	}
