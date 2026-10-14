@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -341,28 +342,65 @@ func (u *URL) Parse(url *string) (ok bool) {
 
 	// reset url segments and type flags
 	u.reset()
-	u.Host = *url
+
+	// WHATWG input cleaning: tab/CR/LF are deleted anywhere in the string, leading
+	// and trailing C0 controls and space are trimmed, and a backslash is a slash.
+	// Left alone, "http://example.com\@evil.com/" reads as host evil.com while the
+	// browser navigates to example.com.
+	u.Host = strings.TrimFunc(strings.Map(func(r rune) rune {
+		switch r {
+		case '\t', '\n', '\r':
+			return -1
+		case '\\':
+			return '/'
+		}
+		return r
+	}, *url), func(r rune) bool { return r <= ' ' })
 
 	// strip query fragment
-	if u.idx = strings.Index(u.Host, "#"); u.idx > 0 {
+	if u.idx = strings.Index(u.Host, "#"); u.idx >= 0 {
 		u.Host = u.Host[:u.idx]
 	}
 
 	// strip query segment
-	if u.idx = strings.Index(u.Host, "?"); u.idx > 0 {
+	if u.idx = strings.Index(u.Host, "?"); u.idx >= 0 {
 		u.Host = u.Host[:u.idx]
 	}
 
-	// strip schemes; the scheme token has to be short and at the very start of
-	// the string, or "://" is not a scheme delimiter at all - it is an embedded
-	// URL inside dirty input (an HTML fragment, a link-protection wrapper, a
-	// tracking redirect with the real target appended after it). strings.Index
-	// finds the FIRST "://" wherever it is, so without this bound Parse
-	// silently discards everything before a later one and returns the embedded
-	// URL's host instead of the real one. 8 covers every real scheme in use
-	// here (https:// is the longest at 5) with margin to spare.
-	if len(u.Host) > 8 {
-		if u.idx = strings.Index(u.Host, "://"); u.idx > -1 && u.idx <= 8 {
+	// strip the scheme, but only a real one: RFC 3986 grammar at the very start of
+	// the string. "://" anywhere later is not a scheme delimiter - it is an
+	// embedded URL inside dirty input (an HTML fragment, a link-protection
+	// wrapper, a tracking redirect with the real target appended after it), and
+	// discarding everything before it returns the embedded URL's host instead of
+	// the real one. Any scheme followed by "//" is stripped; the special schemes
+	// also strip with one slash, none, or many ("http:/h", "http:h", "http:///h").
+	//
+	// Only the web schemes are navigable, so a host is attributed to nothing else:
+	// "javascript://example.com/..." and "ssh://example.com" yield no host, and an
+	// opaque scheme with no authority ("mailto:a@example.com", "javascript:alert(1)",
+	// "data:...") is rejected up front.
+	if opaqueScheme(u.Host) {
+		u.reset()
+		return
+	}
+	if i := schemeEnd(u.Host); i > 0 {
+		switch rest := u.Host[i+1:]; {
+		case isSpecialScheme(u.Host[:i]):
+			u.Host = strings.TrimLeft(rest, "/")
+		case strings.HasPrefix(rest, "//"):
+			if !strings.EqualFold(u.Host[:i], "file") {
+				u.reset()
+				return
+			}
+			u.Host = rest[2:]
+		}
+	} else if strings.HasPrefix(u.Host, "//") { // protocol-relative //example.com
+		u.Host = strings.TrimLeft(u.Host, "/")
+	} else if u.idx = strings.Index(u.Host, "://"); u.idx > 0 && u.idx <= 8 && !strings.ContainsAny(u.Host[:u.idx], "/@") {
+		// junk (a quote, a bracket) directly in front of a genuine scheme; the short
+		// bound and the no-slash/@ prefix keep a later embedded "://" out of reach.
+		// Strip it only for a web scheme: a non-web one has no host to attribute.
+		if sc := trailingAlpha(u.Host[:u.idx]); isSpecialScheme(sc) || strings.EqualFold(sc, "file") {
 			u.Host = u.Host[u.idx+3:]
 		}
 	}
@@ -376,10 +414,10 @@ func (u *URL) Parse(url *string) (ok bool) {
 		}
 	}
 
-	// remove user:host segment
-	u.seg = strings.Split(u.Host, "@")
-	if len(u.seg) > 1 {
-		u.Host = u.seg[1]
+	// remove user:host segment; userinfo ends at the LAST '@' (WHATWG), so
+	// "a@b@evil.com" is host evil.com and "u:p@q@h" is not host q
+	if u.idx = strings.LastIndexByte(u.Host, '@'); u.idx >= 0 {
+		u.Host = u.Host[u.idx+1:]
 	}
 
 	// strip whitespace
@@ -390,7 +428,7 @@ func (u *URL) Parse(url *string) (ok bool) {
 
 	// unported ipv6
 	case strings.HasSuffix(u.Host, "]") && strings.HasPrefix(u.Host, "["):
-		u.Host = u.Host[1 : len(u.Host)-2]
+		u.Host = u.Host[1 : len(u.Host)-1]
 
 	// ipv6
 	case strings.HasPrefix(u.Host, "[") && strings.Contains(u.Host, "]:"):
@@ -400,8 +438,8 @@ func (u *URL) Parse(url *string) (ok bool) {
 			u.Port = u.seg[1]
 		}
 
-	// !ipv6; ipv4|domain
-	case strings.Contains(u.Host, "."):
+	// !ipv6; ipv4|domain; exactly one colon, since several mean a bare ipv6 literal
+	case strings.Count(u.Host, ":") == 1:
 		u.seg = strings.SplitN(u.Host, ":", 2)
 		if len(u.seg) == 2 {
 			u.Host = u.seg[0]
@@ -411,10 +449,46 @@ func (u *URL) Parse(url *string) (ok bool) {
 		}
 	}
 
+	// a browser percent-decodes the host before using it; an escape that decodes
+	// to a delimiter or control byte is rejected rather than smuggled through
+	if d, dok := percentDecodeHost(u.Host); dok {
+		u.Host = d
+	} else {
+		u.reset()
+		return
+	}
+
+	// empty labels are collapsed, as the GSB canonicalization does, not carried into
+	// the host: "evil..com" is the key "evil.com"
+	u.Host = collapseDots(u.Host)
+
+	// UTS-46 mapping can turn a non-address into one ("１２７.０.０.１", "0x7f。0。0。1"),
+	// and a browser maps before it parses an address, so map first or a loopback
+	// literal slips through as an ordinary host. Non-ASCII hosts only; the lookup
+	// profile maps and validates the rest below.
+	if !u.noIDNA && strings.ContainsFunc(u.Host, func(r rune) bool { return r >= 0x80 }) {
+		if m, err := u.puny.ToASCII(u.Host); err == nil {
+			u.Host = collapseDots(m) // mapping can fold "。" to "." and make a new empty label
+		}
+	}
+
+	// inet_aton forms (2130706433, 0x7f.0.0.1, 127.1, a trailing root dot) are the
+	// same address as the dotted quad to a browser; net.ParseIP knows only the quad
+	if a, aok := parseIPv4Radix(strings.TrimSuffix(u.Host, ".")); aok {
+		u.Host = a.String()
+	}
+
+	// One key per address: lowercase, compressed, and an IPv4-mapped IPv6 spelling
+	// reduced to the IPv4 it is, so listing 8.8.8.8 also matches [::ffff:8.8.8.8].
+	// A zone ("%eth0") never gets here; percentDecodeHost rejects its '%'.
+	if a, err := netip.ParseAddr(u.Host); err == nil {
+		u.Host = a.Unmap().String()
+	}
+
 	// detect and validate ipv4/6
 	u.ip = net.ParseIP(u.Host)
 	if u.IP = u.ip != nil; u.IP {
-		if u.ip.IsUnspecified() || u.ip.IsLoopback() || u.ip.IsPrivate() {
+		if u.ip.IsUnspecified() || u.ip.IsLoopback() || u.ip.IsPrivate() || u.ip.To4() != nil && u.ip.To4()[0] == 0 { // incl. "this network" 0.0.0.0/8
 			u.reset()
 			return
 
@@ -437,7 +511,17 @@ func (u *URL) Parse(url *string) (ok bool) {
 		// flag for idna|punycode domains
 		if !u.noIDNA {
 			u.Host, u.err = u.puny.ToASCII(u.Host)
+			u.Host = collapseDots(u.Host)
 			u.IDNA = u.err == nil && strings.HasPrefix(u.Host, "xn--")
+		}
+
+		// a name holding a space, control or URL delimiter is not a host; only the
+		// ends were trimmed above, so reject it whole instead of reporting it
+		for u.idx = 0; u.idx < len(u.Host); u.idx++ {
+			if forbiddenHostByte(u.Host[u.idx]) {
+				u.reset()
+				return
+			}
 		}
 
 		// localize apex and tld
@@ -477,8 +561,8 @@ func (u *URL) Parse(url *string) (ok bool) {
 
 	}
 
-	// final validation check
-	if len(u.Host) > 253 {
+	// final validation check; an empty authority has no host to report
+	if len(u.Host) == 0 || len(u.Host) > 253 {
 		u.reset()
 		return
 	}
