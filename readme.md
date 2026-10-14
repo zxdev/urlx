@@ -5,6 +5,16 @@ The urlx package is a simple url standardizer that parses a url into its constit
 
 The Parser is used to generally confirms the hostname has the required format and generates the tld, apex, and host along with the tld kind for the domain and reports only the host for an IPv4/6 address.
 
+Parse locates the host the way a browser navigates, not by byte scanning, so a hostile url cannot hide its host where the parser reads a path or credentials:
+
+- backslash is a slash and tab/CR/LF are deleted, so `http://example.com\@evil.com/` is `example.com`
+- the authority ends at the first `/`, `?` or `#`, and userinfo ends at the **last** `@`
+- a scheme counts only at the start of the string; a later `://` belongs to the path or query
+- only the web schemes (`http`, `https`, `ws`, `wss`, `ftp`, `file`) have a host: `javascript://example.com/`, `ssh://example.com` and opaque `mailto:`, `javascript:`, `data:` are rejected
+- the host is percent-decoded and UTS-46 mapped before it is probed, so `%65xample.com` is `example.com` and fullwidth `１２７.０.０.１` is the loopback address it is
+- IPv4 accepts every inet_aton form (`2130706433`, `0x7f.0.0.1`, `127.1`); IPv6 is one key per address (lowercase, compressed, IPv4-mapped reduced to IPv4)
+- empty labels are collapsed (`evil..com` is `evil.com`), and a host holding a space, control or URL delimiter is rejected
+
 The package provides a public suffix aware url parser based on data from https://publicsuffix.org/ that can be merged with a customlist.
 
 A public suffix is one under which Internet users can directly register names. It is related to, but different from, a TLD (top level domain); "com" is a TLD (top level domain) which means it has no dots and "com" is also a public suffix. "au" is another TLD, again because it has no dots, and while co.uk is not technically a TLD, is is a recognized TLD because that's the branching point for domain name registrars.
